@@ -1,0 +1,1 @@
+# ptcg-scraper-tcgone
