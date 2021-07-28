@@ -663,8 +663,12 @@ def get_attack_cost(attack_node):
 
 def get_attack_description(attack_node):
     # Check if there is description text for attack
-    next_attack_node = find_next_attack_node(attack_node)
-    attack_description_node = next_attack_node.find_next("td")
+    try:
+        next_attack_node = find_next_attack_node(attack_node)
+        attack_description_node = next_attack_node.find_next("td")
+    except:
+        attack_description_node = attack_node.find_next("td")
+    
 
     attack_description_attrs = {
         'class': ['roundy'],
