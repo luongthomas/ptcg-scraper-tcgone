@@ -14,7 +14,8 @@ amazing_volt = False
 vivid_voltage = False
 shiny_star_v = False
 shining_fates = False
-silver_lance = True
+silver_lance = False
+skyscraping_perfection = True
 
 url = link_prefix = filename_regex = links_output = output_directory = ""
 output_yaml = set_id = set_name = set_pio_id = set_enum_id = set_abbr = ""
@@ -116,6 +117,22 @@ elif silver_lance:
     main_page_file = f"./bulbapedia_{name}_page.html"
     soup_output = f"./bulbapedia_{name}_soup.html"
 
+elif skyscraping_perfection:
+    url = "https://bulbapedia.bulbagarden.net/wiki/Evolving_Skies_(TCG)"
+    set_name = "Skyscraping Perfection"
+    link_prefix = f"({set_name}"
+    filename_regex = r'https:\/\/bulbapedia\.bulbagarden\.net\/wiki\/(.*)_\(Skyscraping_Perfection_([\d\w]+)\)'
+    name = "skyscraping_perfection"
+    output_directory = f"./{name}"
+    links_output = f"./{name}_links.txt"
+    output_yaml = f"./s7D-{name}.yaml"
+    set_id = "s7D"
+    set_pio_id = "spe"
+    set_enum_id = f"{name.upper()}"
+    set_abbr = set_pio_id.upper()
+    main_page_file = f"./bulbapedia_{name}_page.html"
+    soup_output = f"./bulbapedia_{name}_soup.html"
+
 
 # https://bulbapedia.bulbagarden.net/wiki/Chilling_Reign_(TCG)
 
@@ -144,7 +161,7 @@ def make_safe_url(url):
         return url
 
 def get_links():
-    if os.path.isfile(links_output):
+    if os.path.isfile(links_output) and os.stat(links_output).st_size != 0:
         links = open(links_output, "r").readlines()
         return links
 
@@ -274,7 +291,7 @@ def set_up_links_and_yaml():
 
     os.chdir(output_directory)
 
-    if not os.path.isfile(links_output):
+    if not os.path.isfile(links_output) or os.stat(links_output).st_size == 0:
         links = get_links()
     else:
         with open(links_output) as f:
