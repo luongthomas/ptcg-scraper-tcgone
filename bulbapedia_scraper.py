@@ -528,7 +528,10 @@ def get_rarity(soup):
 
 
 def get_card_text_node(soup):
-    return soup.find(id="Card_text")
+    node = soup.find(id="Card_text")
+    if not node:
+        node = soup.find('title')
+    return node
 
 def get_ability_node(soup):
     sibling = get_card_text_node(soup).find_next("table")
@@ -687,59 +690,71 @@ def get_attack_description(attack_node):
 
 
 def save_super_sub_types(soup, data):
-    soup = soup.find(id='Card_text')
-    if soup.find_previous('a', {
+    
+    card_text_soup = soup.find(id='Card_text')
+    if not card_text_soup:
+        # Basic Energy pages do not have this ID
+        card_text_soup = soup
+    
+    
+    if card_text_soup.find_previous('a', {
         'title': 'Stage 1 Pokémon (TCG)'
     }):
         data[SUB_TYPES].extend(['EVOLUTION', 'STAGE1'])
         data[SUPER_TYPE] = 'POKEMON'
-    elif soup.find_previous('a', {
+    elif card_text_soup.find_previous('a', {
         'title': 'Stage 2 Pokémon (TCG)'
     }):
         data[SUB_TYPES].extend(['EVOLUTION', 'STAGE2'])
         data[SUPER_TYPE] = 'POKEMON'
-    elif soup.find_previous('a', {
+    elif card_text_soup.find_previous('a', {
         'title': 'Pokémon VMAX (TCG)'
     }):
         data[SUB_TYPES].extend(['EVOLUTION', 'VMAX'])
         data[SUPER_TYPE] = 'POKEMON'
-    elif soup.find_previous('a', {
+    elif card_text_soup.find_previous('a', {
         'title': 'Pokémon V (TCG)'
     }):
         data[SUB_TYPES].extend(['BASIC', 'POKEMON_V'])
         data[SUPER_TYPE] = 'POKEMON'
-    elif soup.find_previous('a', {
+    elif card_text_soup.find_previous('a', {
         'title': 'Stadium card (TCG)'
     }):
         data[SUB_TYPES].append('STADIUM')
         data[SUPER_TYPE] = 'TRAINER'
-    elif soup.find_previous('a', {
+    elif card_text_soup.find_previous('a', {
         'title': 'Pokémon Tool card (TCG)'
     }):
         data[SUB_TYPES].append('POKEMON_TOOL')
         data[SUB_TYPES].append('ITEM')
         data[SUPER_TYPE] = 'TRAINER'
-    elif soup.find_previous('a', {
+    elif card_text_soup.find_previous('a', {
         'title': 'Item card (TCG)'
     }):
         data[SUB_TYPES].append('ITEM')
         data[SUPER_TYPE] = 'TRAINER'
-    elif soup.find_previous('a', {
+    elif card_text_soup.find_previous('a', {
         'title': 'Supporter card (TCG)'
     }):
         data[SUB_TYPES].append('SUPPORTER')
         data[SUPER_TYPE] = 'TRAINER'
-    elif soup.find_previous('a', {
+    elif card_text_soup.find_previous('a', {
         'title': 'Basic Pokémon (TCG)'
     }):
         data[SUB_TYPES].extend(['BASIC'])
         data[SUPER_TYPE] = 'POKEMON'
-    elif soup.find_previous('a', {
+    elif card_text_soup.find_previous('a', {
         'title': 'Special Energy card (TCG)'
     }):
-        # TODO: Handle case for normal energies
         data[SUB_TYPES].extend(['SPECIAL_ENERGY'])
         data[SUPER_TYPE] = 'ENERGY'
+    
+    else:
+        if card_text_soup.find_all('a', {
+            'title': 'Basic Energy card (TCG)'
+        }):
+            data[SUB_TYPES].extend(['BASIC_ENERGY'])
+            data[SUPER_TYPE] = 'ENERGY'  
 
     return data
 
@@ -1010,41 +1025,42 @@ def write_out(data):
         f.write(f"  superType: {data[SUPER_TYPE]}\n")
         f.write(f"  subTypes: [{', '.join(data[SUB_TYPES])}]\n")
 
-        if data.get(EVOLVES_FROM):
-            f.write(f"  evolvesFrom: {data[EVOLVES_FROM]}\n")    
+        if 'BASIC_ENERGY' not in data[SUB_TYPES]:
+            if data.get(EVOLVES_FROM):
+                f.write(f"  evolvesFrom: {data[EVOLVES_FROM]}\n")    
 
-        f.write(f"  rarity: {data[RARITY]}\n")
+            f.write(f"  rarity: {data[RARITY]}\n")
 
-        if data.get(HP):
-            f.write(f"  hp: {data[HP]}\n")
-        if data.get(RETREAT_COST) is not None:
-            f.write(f"  retreatCost: {data[RETREAT_COST]}\n")
-        if data.get(ABILITY_NAME):
-            f.write(f"  abilities:\n")
-            f.write(f"  - type: Ability\n")
-            f.write(f"    name: {data[ABILITY_NAME]}\n")
-            f.write(f"    text: {data[ABILITY_TEXT]}\n")
+            if data.get(HP):
+                f.write(f"  hp: {data[HP]}\n")
+            if data.get(RETREAT_COST) is not None:
+                f.write(f"  retreatCost: {data[RETREAT_COST]}\n")
+            if data.get(ABILITY_NAME):
+                f.write(f"  abilities:\n")
+                f.write(f"  - type: Ability\n")
+                f.write(f"    name: {data[ABILITY_NAME]}\n")
+                f.write(f"    text: {data[ABILITY_TEXT]}\n")
 
-        if data.get(MOVES):
-            f.write(f"  moves:\n")
+            if data.get(MOVES):
+                f.write(f"  moves:\n")
+                
+                for move in data[MOVES]:
+                    f.write(f"  - cost: [{', '.join(move[MOVE_COST])}]\n")
+                    f.write(f"    name: {move[MOVE_NAME]}\n")
+                    if move.get(MOVE_DAMAGE):
+                        f.write(f"    damage: '{move[MOVE_DAMAGE]}'\n")
+                    if move.get(MOVE_TEXT):
+                        f.write(f"    text: {move[MOVE_TEXT]}\n")
             
-            for move in data[MOVES]:
-                f.write(f"  - cost: [{', '.join(move[MOVE_COST])}]\n")
-                f.write(f"    name: {move[MOVE_NAME]}\n")
-                if move.get(MOVE_DAMAGE):
-                    f.write(f"    damage: '{move[MOVE_DAMAGE]}'\n")
-                if move.get(MOVE_TEXT):
-                    f.write(f"    text: {move[MOVE_TEXT]}\n")
-        
-        if data.get(WEAKNESS_TYPE):
-            f.write(f"  weaknesses:\n")
-            f.write(f"  - type: {data[WEAKNESS_TYPE]}\n")
-            f.write(f"    value: x2\n")
-        
-        if data.get(RESISTANCE_TYPE):
-            f.write(f"  resistances:\n")
-            f.write(f"  - type: {data[RESISTANCE_TYPE]}\n")
-            f.write(f"    value: '-30'\n")
+            if data.get(WEAKNESS_TYPE):
+                f.write(f"  weaknesses:\n")
+                f.write(f"  - type: {data[WEAKNESS_TYPE]}\n")
+                f.write(f"    value: x2\n")
+            
+            if data.get(RESISTANCE_TYPE):
+                f.write(f"  resistances:\n")
+                f.write(f"  - type: {data[RESISTANCE_TYPE]}\n")
+                f.write(f"    value: '-30'\n")
 
         if data.get(CARD_TEXT):
             f.write(f"  text: [{data[CARD_TEXT]}]\n")
